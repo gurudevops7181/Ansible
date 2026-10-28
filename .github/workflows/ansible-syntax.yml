@@ -1,0 +1,37 @@
+name: Ansible syntax check
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-check:
+    name: Check user creation playbook syntax
+    runs-on: [self-hosted, linux]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install Ansible Core
+        shell: bash
+        run: |
+          venv_path="${RUNNER_TEMP}/ansible-venv"
+          python -m venv --clear "$venv_path"
+          "$venv_path/bin/python" -m pip install --disable-pip-version-check ansible-core
+          echo "$venv_path/bin" >> "$GITHUB_PATH"
+
+      - name: Syntax-check playbook
+        run: >-
+          ansible-playbook --syntax-check
+          --inventory user-creation/inventory.ini
+          user-creation/create_users.yml

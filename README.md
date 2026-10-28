@@ -1,108 +1,38 @@
-🧑‍💻 Ansible Playbook — Create Users, Add to Sudoers, and Configure SSH Access
+# Ansible user provisioning
 
-This Ansible playbook automates the process of creating system users, granting them passwordless sudo access, and configuring their SSH authorized keys for secure remote login.
+This repository contains an Ansible playbook that creates Linux users, grants them passwordless sudo access, and installs their SSH public keys.
 
-⸻
+## Repository layout
 
-📘 Overview
+```text
+.
+├── .github/workflows/ansible-syntax.yml
+├── README.md
+└── user-creation/
+    ├── README.md
+    ├── create_users.yml
+    ├── inventory.ini
+    └── test.pub
+```
 
-This playbook:
-	•	Creates Linux users with home directories.
-	•	Adds users to /etc/sudoers.d/ for passwordless sudo privileges.
-	•	Adds SSH public keys to each user’s ~/.ssh/authorized_keys.
-	•	Can easily be extended to manage permissions or update sshd_config.
+## GitHub Actions workflow
 
-⸻
+The **Ansible syntax check** workflow runs on pushes and can also be started with **Actions → Ansible syntax check → Run workflow**. It uses a Linux runner labeled `self-hosted` and checks the playbook syntax; it does not connect to inventory hosts or apply changes.
 
-📁 Project Structure
-ansible/
-├── inventory.ini
-├── create_users.yml
-├── test.pub
+The runner needs to be a Linux self-hosted Actions runner at version 2.327.1 or later. It also needs network access to GitHub and PyPI so the workflow can check out the repository, set up Python, and install Ansible Core.
 
-⚙️ Prerequisites
+## Prepare and run the playbook
 
-✅ Ansible installed on your control node
-✅ SSH access to target hosts
-✅ A valid private key (.pem or .key) for the remote user
-✅ Python installed on the managed node (default: /usr/bin/python3)
+Before running it, update `user-creation/inventory.ini` with a real target host, SSH user, and private-key path. Make sure that account can use `sudo` on the target. Replace the placeholder `users` entry and put a valid public key in the configured key file; `user-creation/test.pub` is empty in this repository.
 
-⸻
+Then run from the repository root:
 
-🧩 Inventory File (inventory.ini)
-[prod]
-192.168.1.10
+```sh
+ansible-playbook \
+  --inventory user-creation/inventory.ini \
+  user-creation/create_users.yml
+```
 
-[prod:vars]
-ansible_user=test
-ansible_ssh_private_key_file=/Users/gurunadh/guru/ssh_key/guru
-ansible_ssh_common_args='-o StrictHostKeyChecking=no -p 22'
-# ansible_python_interpreter=/usr/bin/python3
+The playbook grants each configured user passwordless sudo access to all commands. Use it only for accounts that should have that level of access. Do not commit private SSH keys. Keep SSH host-key checking enabled and configure trusted host keys before connecting to production systems.
 
-📜 Playbook File (create_users.yml)
-
----
-- name: Create users and add to sudoers with SSH keys
-  hosts: prod
-  gather_facts: yes
-  become: true
-
-  vars:
-    users:
-      - name: test
-        pubkey_file: ./test.pub
-
-  tasks:
-    - name: Add users to system
-      user:
-        name: "{{ item.name }}"
-        shell: /bin/bash
-        create_home: yes
-        home: /home/{{ item.name }}
-      with_items: "{{ users }}"
-
-    - name: Add sudo privileges to users
-      copy:
-        content: "{{ item.name }} ALL=(ALL) NOPASSWD:ALL"
-        dest: /etc/sudoers.d/{{ item.name }}
-        mode: 0440
-      with_items: "{{ users }}"
-
-    - name: Add SSH key to authorized_keys
-      authorized_key:
-        user: "{{ item.name }}"
-        state: present
-        key: "{{ lookup('file', item.pubkey_file) }}"
-      with_items: "{{ users }}"
-
-      🗝️ Example SSH Public Key File (test.pub)
-      ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC3gJbq... user@example
-
-
-    ▶️ Run the Playbook
-
-    To execute the playbook:
-      ansible-playbook -i inventory.ini create_users.yml
-
-      If you want to run it with more verbosity (debug mode):
-      ansible-playbook -i inventory.ini create_users.yml -vvv
-
-
-
-
-    🧠 Notes
-	•	Each user defined in users will:
-	•	Have a home directory.
-	•	Get passwordless sudo access.
-	•	Be able to log in via SSH using the provided public key.
-	•	The playbook can handle multiple users; just add more entries under users.
-
-⸻
-
-🧑‍💻 Author
-
-Gurunadh
-DevOps Engineer | AWS | Automation | Docker | Terraform | Kubernetes | Ansible | GitLab
-📧 gurujames7181@gmail.com
-🔗 LinkedIn
-💻 GitHub
+See [user-creation/README.md](user-creation/README.md) for playbook-specific details.
